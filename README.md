@@ -47,7 +47,7 @@ This solution extracts a **structured outline (Title + H1, H2, H3)** from any PD
 - Applies intelligent **spacing fixes** (e.g., `DeepLearning` → `Deep Learning`).
 - Uses **Unicode script detection** to identify text language:  
   Supports multilingual content such as:
-  - **Hindi (Devanagari)**
+
   - **Chinese / Japanese / Korean (CJK)**
   - **Arabic**
   - **Latin, Cyrillic** etc.
