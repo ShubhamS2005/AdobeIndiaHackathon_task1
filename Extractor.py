@@ -5,6 +5,8 @@ import re
 from collections import defaultdict
 from difflib import SequenceMatcher
 import time
+from collections import defaultdict
+import unicodedata
 
 INPUT_DIR = "input"
 OUTPUT_DIR = "output"
@@ -119,6 +121,26 @@ def group_multiline_headings(lines):
 def is_similar(text1, text2, threshold=0.8):
     return SequenceMatcher(None, text1.lower(), text2.lower()).ratio() > threshold
 
+def detect_script(text):
+    scripts = defaultdict(int)
+    for char in text:
+        if char.isalpha():
+            name = unicodedata.name(char, "")
+            if "CJK" in name or "HIRAGANA" in name or "KATAKANA" in name:
+                scripts["Japanese"] += 1
+            elif "HANGUL" in name:
+                scripts["Korean"] += 1
+            elif "CYRILLIC" in name:
+                scripts["Cyrillic"] += 1
+            elif "ARABIC" in name:
+                scripts["Arabic"] += 1
+            elif "DEVANAGARI" in name:
+                scripts["Devanagari"] += 1
+            elif "LATIN" in name:
+                scripts["Latin"] += 1
+    return max(scripts, key=scripts.get) if scripts else "Unknown"
+
+
 def extract_outline_final(pdf_path):
     doc = fitz.open(pdf_path)
     candidate_headings = []
@@ -148,7 +170,7 @@ def extract_outline_final(pdf_path):
                 continue
             if is_ocr_noise(text):
                 continue
-            if any(is_similar(text, seen) for seen in seen_texts[-30:]): 
+            if any(is_similar(text, seen) for seen in seen_texts[-30:]):  # ✅ limit comparisons
                 continue
 
             seen_texts.append(text)
@@ -157,9 +179,19 @@ def extract_outline_final(pdf_path):
             bold = any(is_bold(f) for f in line["flags"])
             y0 = line["y0"]
             word_count = len(text.split())
-            cap_ratio = sum(1 for c in text if c.isupper()) / max(len(text), 1)
 
-            score = avg_size + (3 * cap_ratio) + (5 if bold else 0)
+            script = detect_script(text)
+            is_multilingual = script != "Latin"
+
+            if is_multilingual:
+                cap_ratio = 0  
+                script_bonus = 3
+            else:
+                cap_ratio = sum(1 for c in text if c.isupper()) / max(len(text), 1)
+                script_bonus = 0
+
+            score = avg_size + (3 * cap_ratio) + (5 if bold else 0) + script_bonus
+
             if y0 < 300:
                 score += 3
             if word_count < 10:
@@ -201,8 +233,11 @@ def extract_outline_final(pdf_path):
             level = "H2"
         elif score > 10 and size > base_font_size:
             level = "H3"
+        elif h.get("script") == "Devanagari" and score > 8:
+            level = "H3" 
         else:
             continue
+
 
         outline.append({
             "level": level,
@@ -218,6 +253,7 @@ def extract_outline_final(pdf_path):
     if possible_titles:
         title = max(possible_titles, key=lambda x: x[0])[1]
     else:
+        # fallback: pick first H1 from outline
         h1_candidates = [h for h in outline if h["level"] == "H1"]
         title = h1_candidates[0]["text"] if h1_candidates else "UNKNOWN"
 
@@ -244,11 +280,12 @@ def main():
 
         output_file = os.path.join(OUTPUT_DIR, f"{file_name}_final.json")
         with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(result, f, indent=2)
+            json.dump(result, f, indent=2, ensure_ascii=False)
+
 
         end_time = time.time()
-        print(f" Saved: {output_file}")
-        print(f" Time taken: {end_time - start_time:.2f} seconds")
+        print(f"✅ Saved: {output_file}")
+        print(f"⏱️ Time taken: {end_time - start_time:.2f} seconds")
 
 if __name__ == "__main__":
     main()

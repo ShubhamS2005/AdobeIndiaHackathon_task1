@@ -184,7 +184,7 @@ def extract_outline_final(pdf_path):
             is_multilingual = script != "Latin"
 
             if is_multilingual:
-                cap_ratio = 0  # Caps not meaningful in Japanese, Arabic etc.
+                cap_ratio = 0  
                 script_bonus = 3
             else:
                 cap_ratio = sum(1 for c in text if c.isupper()) / max(len(text), 1)
@@ -233,8 +233,11 @@ def extract_outline_final(pdf_path):
             level = "H2"
         elif score > 10 and size > base_font_size:
             level = "H3"
+        elif h.get("script") == "Devanagari" and score > 8:
+            level = "H3" 
         else:
             continue
+
 
         outline.append({
             "level": level,
@@ -277,7 +280,8 @@ def main():
 
         output_file = os.path.join(OUTPUT_DIR, f"{file_name}_final.json")
         with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(result, f, indent=2)
+            json.dump(result, f, indent=2, ensure_ascii=False)
+
 
         end_time = time.time()
         print(f"✅ Saved: {output_file}")
