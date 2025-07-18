@@ -242,7 +242,7 @@ def extract_outline_final(pdf_path):
         outline.append({
             "level": level,
             "text": h["text"],
-            "page": h["page"]
+            "page": h["page"]-1
         })
 
         if len(outline) >= MAX_HEADINGS:
